@@ -203,10 +203,10 @@ func (rm *RegistryManager) GetModels(db *database.Handler, f types.Filter) ([]v1
 	}
 
 	var modelWithCategoriess []modelWithCategories
-	finder := db.Model(&v1alpha1.ModelDB{}).
-		Select("model_dbs.*, category_dbs.*").
-		Joins("JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
-
+	fmt.Println(db.DB.Debug().Model(&v1alpha1.ModelDB{}).
+		Joins("INNER JOIN category_dbs ON model_dbs.category_id = category_dbs.id").Debug().Statement.SQL, "==================")
+	finder := db.Model(&v1alpha1.ModelDB{}).InnerJoins("INNER JOIN category_dbs ON model_dbs.category_id = category_dbs.id") //
+	fmt.Println(finder.Statement.Joins, finder.Statement.Vars)
 	// total count before pagination
 	var count int64
 

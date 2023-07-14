@@ -67,7 +67,7 @@ func emptySchemaCheck(schema string) (valid bool) {
 	return
 }
 func CreateComponent(db *database.Handler, c ComponentDefinition) (uuid.UUID, error) {
-	c.ID = uuid.New()
+	// c.ID = uuid.New()
 	mid, err := CreateModel(db, c.Model)
 	if err != nil {
 		return uuid.UUID{}, err
