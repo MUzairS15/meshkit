@@ -11,6 +11,8 @@ const (
 	ErrAbsentFilterCode          = "1006"
 	ErrCreatingDirectoryCode     = "1007"
 	ErrGetResourceIdentifierCode = "11075"
+		ErrGetSchemaCode    = "11091"
+
 )
 
 func ErrGetResourceIdentifier(err error) error {
@@ -39,4 +41,8 @@ func ErrAbsentFilter(err error) error {
 }
 func ErrCreatingDirectory(err error) error {
 	return errors.New(ErrCreatingDirectoryCode, errors.Alert, []string{"could not create directory"}, []string{err.Error()}, []string{"proper file permissions were not set"}, []string{"check the appropriate file permissions"})
+}
+
+func ErrGetSchema(err error) error {
+	return errors.New(ErrGetSchemaCode, errors.Alert, []string{"Could not get schema for the given CRD"}, []string{err.Error()}, []string{"Unable to marshal from cue value to JSON", "Unable to unmarshal from JSON to Go type"}, []string{"Verify CRD has valid schema.", "Malformed JSON provided", "CUE path to propery doesn't exist"})
 }

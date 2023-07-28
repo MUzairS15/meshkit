@@ -14,6 +14,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/models/oam/core/v1alpha1"
+	"github.com/layer5io/meshkit/utils"
 )
 
 const (
@@ -25,18 +26,18 @@ var templateExpression *regexp.Regexp
 func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.Context) (string, error) {
 	var def v1alpha1.WorkloadDefinition
 	// get the resource identifier
-	idCueVal, _ := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
+	idCueVal, _ := utils.Lookup(parsedCrd, cfg.CrdFilter.CuePaths.IdentifierPath)
 	resourceId, err := idCueVal.String()
 	if err != nil {
 		return "", ErrGetResourceIdentifier(err)
 	}
 	definitionRef := strings.ToLower(resourceId) + ".meshery.layer5.io"
-	apiVersionCueVal, _ := cfg.CrdFilter.VersionExtractor(parsedCrd)
+	apiVersionCueVal, _ := utils.Lookup(parsedCrd, cfg.CrdFilter.CuePaths.VersionPath)
 	apiVersion, err := apiVersionCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIVersion(err)
 	}
-	apiGroupCueVal, _ := cfg.CrdFilter.GroupExtractor(parsedCrd)
+	apiGroupCueVal, _ := utils.Lookup(parsedCrd, cfg.CrdFilter.CuePaths.GroupPath)
 	apiGroup, err := apiGroupCueVal.String()
 	if err != nil {
 		return "", ErrGetAPIGroup(err)
@@ -86,30 +87,42 @@ func getDefinitions(parsedCrd cue.Value, resource int, cfg Config, ctx context.C
 	return string(out), nil
 }
 
-func getSchema(parsedCrd cue.Value, cfg Config, ctx context.Context) (string, error) {
-	schema := map[string]interface{}{}
-	specCueVal, _ := cfg.CrdFilter.SpecExtractor(parsedCrd)
-	marshalledJson, err := specCueVal.MarshalJSON()
-	if err != nil {
-		return "", ErrGetSchemas(err)
-	}
-	err = json.Unmarshal(marshalledJson, &schema)
-	if err != nil {
-		return "", ErrGetSchemas(err)
-	}
-	idCueVal, _ := cfg.CrdFilter.IdentifierExtractor(parsedCrd)
-	resourceId, err := idCueVal.String()
-	if err != nil {
-		return "", ErrGetResourceIdentifier(err)
-	}
-	(schema)["title"] = FormatToReadableString(resourceId)
-	var output []byte
-	output, err = json.MarshalIndent(schema, "", " ")
-	if err != nil {
-		return "", err
-	}
-	return string(output), nil
-}
+// func GetSchema(parsedCrd cue.Value, pathConf CuePathConfig) (string, error) {
+// 	schema := map[string]interface{}{}
+// 	specCueVal, err := utils.Lookup(parsedCrd, pathConf.SpecPath)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	marshalledJson, err := specCueVal.MarshalJSON()
+// 	if err != nil {
+// 		return "", ErrGetSchema(err)
+// 	}
+// 	err = json.Unmarshal(marshalledJson, &schema)
+// 	if err != nil {
+// 		return "", ErrGetSchema(err)
+// 	}
+// 	resourceId, err := extractCueValueFromPath(parsedCrd, pathConf.IdentifierPath)
+// 	if err != nil {
+// 		return "", ErrGetSchema(err)
+// 	}
+
+// 	updatedProps, err := component.UpdateProperties(specCueVal, cue.ParsePath(pathConf.PropertiesPath), resourceId)
+
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	schema = updatedProps
+// 	DeleteFields(schema)
+
+// 	(schema)["title"] = FormatToReadableString(resourceId)
+// 	var output []byte
+// 	output, err = json.MarshalIndent(schema, "", " ")
+// 	if err != nil {
+// 		return "", ErrGetSchema(err)
+// 	}
+// 	return string(output), nil
+// }
 
 func populateTempyaml(yaml string, path string) error {
 	var _, err = os.Stat(path)
@@ -468,45 +481,19 @@ type ExtractorPaths struct {
 	VersionPath string
 	SpecPath    string
 	IdPath      string
+	PropertiesPath string
 }
 
 func NewCueCrdFilter(ep ExtractorPaths, isJson bool) CueCrdFilter {
 	return CueCrdFilter{
 		IsJson: isJson,
-		IdentifierExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
-			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.IdPath))
-			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
-			}
-			return res.Value(), nil
-		},
-		NameExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
-			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.NamePath))
-			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
-			}
-			return res.Value(), nil
-		},
-		VersionExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
-			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.VersionPath))
-			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
-			}
-			return res.Value(), nil
-		},
-		GroupExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
-			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.GroupPath))
-			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
-			}
-			return res.Value(), nil
-		},
-		SpecExtractor: func(rootCRDCueVal cue.Value) (cue.Value, error) {
-			res := rootCRDCueVal.LookupPath(cue.ParsePath(ep.SpecPath))
-			if !res.Exists() {
-				return res, fmt.Errorf("Could not find the value")
-			}
-			return res.Value(), nil
-		},
+		CuePaths: CuePathConfig{
+			NamePath: ep.NamePath,
+			GroupPath: ep.GroupPath,
+			VersionPath: ep.VersionPath,
+			SpecPath: ep.SpecPath,
+			IdentifierPath: ep.IdPath,
+			PropertiesPath: ep.PropertiesPath,
+		} ,
 	}
 }

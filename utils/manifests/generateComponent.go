@@ -42,7 +42,7 @@ func GenerateComponents(ctx context.Context, manifest string, resource int, cfg 
 			// TODO: Maintain a list of errors and keep pushing the errors to the list so that it can be displayed at last
 			continue
 		}
-		outSchema, err := getSchema(parsedCrd, cfg, ctx)
+		outSchema, err := getSchema(parsedCrd, cfg.CrdFilter.CuePaths)
 		if err != nil {
 			// inability to generate component for a single crd should not affect the rest
 			// TODO: Maintain a list of errors and keep pushing the errors to the list so that it can be displayed at last
