@@ -11,7 +11,6 @@ import (
 	"cuelang.org/go/encoding/jsonschema"
 	"cuelang.org/go/encoding/yaml"
 )
-
 func Validate(schema cue.Value, value cue.Value) (bool, []errors.Error) {
 	var errs []errors.Error
 	uval := value.Unify(schema)
