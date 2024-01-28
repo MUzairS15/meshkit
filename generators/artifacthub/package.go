@@ -32,6 +32,10 @@ type AhPackage struct {
 	Version           string `yaml:"version"`
 }
 
+func (pkg AhPackage) GetVersion() string {
+	return pkg.Version
+}
+
 func (pkg AhPackage) GenerateComponents() ([]v1alpha1.ComponentDefinition, error) {
 	components := make([]v1alpha1.ComponentDefinition, 0)
 	// TODO: Move this to the configuration
@@ -104,6 +108,10 @@ func (pkg *AhPackage) UpdatePackageData() error {
 	}
 	pkg.ChartUrl = chartUrl
 	return nil
+}
+
+func (pkg *AhPackage) Validator() {
+
 }
 
 // GetAllAhHelmPackages returns a list of all AhPackages and is super slow to avoid rate limits.
