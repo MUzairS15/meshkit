@@ -123,14 +123,17 @@ func (mb *mesheryBroker) GetVersion() (string, error) {
 }
 
 func (mb *mesheryBroker) GeEndpointForPort(portName string) (string, error) {
+	fmt.Println("REACHED GeEndpointForPort")
 	endpoint, err := kubernetes.GetServiceEndpoint(context.TODO(), mb.kclient.KubeClient, &mesherykube.ServiceOptions{
 		Name: "meshery-broker",
 		Namespace: "meshery",
 		PortSelector: portName,
 	})
 	if err != nil {
+		fmt.Println("ERROR GeEndpointForPort: ", err)
 		return "", err
 	}
+	fmt.Println("Endpoint: ------------------------", endpoint.External.String(), endpoint.Internal.String())
 	return endpoint.External.String(), nil
 }
 
