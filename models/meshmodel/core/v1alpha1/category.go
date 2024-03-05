@@ -23,12 +23,15 @@ type CategoryDB struct {
 	Metadata []byte    `json:"categoryMetadata" gorm:"categoryMetadata"`
 }
 type CategoryFilter struct {
-	Name    string
-	OrderOn string
-	Greedy  bool
-	Sort    string //asc or desc. Default behavior is asc
-	Limit   int    //If 0 or  unspecified then all records are returned and limit is not used
-	Offset  int
+	Name      string
+	OrderOn   string
+	Greedy    bool
+	Sort      string //asc or desc. Default behavior is asc
+	Limit     int    //If 0 or  unspecified then all records are returned and limit is not used
+	Offset    int
+	// When the attribute is true, the query results also include categories with zero models.
+	// Default value false, i.e. The query results include only categories that have one or more models.
+	ReturnAll bool
 }
 
 const DefaultCategory = "Miscellaneous"

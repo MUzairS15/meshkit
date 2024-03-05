@@ -446,29 +446,32 @@ func (rm *RegistryManager) GetCategories(db *database.Handler, f types.Filter) (
 	// total count before pagination
 	var count int64
 
-	if mf, ok := f.(*v1alpha1.CategoryFilter); ok {
-		if mf.Name != "" {
-			if mf.Greedy {
-				finder = finder.Where("name LIKE ?", "%"+mf.Name+"%")
+	if categoryFilter, ok := f.(*v1alpha1.CategoryFilter); ok {
+		if categoryFilter.Name != "" {
+			if categoryFilter.Greedy {
+				finder = finder.Where("name LIKE ?", "%"+categoryFilter.Name+"%")
 			} else {
-				finder = finder.Where("name = ?", mf.Name)
+				finder = finder.Where("name = ?", categoryFilter.Name)
 			}
 		}
-		if mf.OrderOn != "" {
-			if mf.Sort == "desc" {
-				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: mf.OrderOn}, Desc: true})
+		if categoryFilter.OrderOn != "" {
+			if categoryFilter.Sort == "desc" {
+				finder = finder.Order(clause.OrderByColumn{Column: clause.Column{Name: categoryFilter.OrderOn}, Desc: true})
 			} else {
-				finder = finder.Order(mf.OrderOn)
+				finder = finder.Order(categoryFilter.OrderOn)
 			}
 		}
 
+		if !categoryFilter.ReturnAll {
+			finder = finder.Where("(?) > 0", db.Raw("select count(*) from model_dbs where category_dbs.id == model_dbs.category_id"))
+		}
 		finder.Count(&count)
 
-		if mf.Limit != 0 {
-			finder = finder.Limit(mf.Limit)
+		if categoryFilter.Limit != 0 {
+			finder = finder.Limit(categoryFilter.Limit)
 		}
-		if mf.Offset != 0 {
-			finder = finder.Offset(mf.Offset)
+		if categoryFilter.Offset != 0 {
+			finder = finder.Offset(categoryFilter.Offset)
 		}
 	}
 
