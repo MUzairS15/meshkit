@@ -1,4 +1,4 @@
-module github.com/layer5io/meshkit
+module github.com/MUzairS15/meshkit
 
 go 1.21
 
