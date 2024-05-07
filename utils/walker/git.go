@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/layer5io/meshkit/logger"
 )
 
 // Git represents the Git Walker
@@ -28,14 +29,26 @@ type Git struct {
 	fileInterceptor    FileInterceptor
 	dirInterceptor     DirInterceptor
 	referenceName      plumbing.ReferenceName
+
+	// Skips reading file content as they are discovered while walking the repo.
+	// In this mode only the file and dir interceptors are called.
+	// By default file contents are read.
+	skipFileReadDuringWalk bool
+
+	// Skips file which has size greater than "maxFileSizeInBytes".
+	// By default error is returned and the walk is terminated
+	skipOverizedFile       bool
+	
+	log                    logger.Handler
 }
 
 // NewGit returns a pointer to an instance of Git
-func NewGit() *Git {
+func NewGit(log logger.Handler) *Git {
 	return &Git{
 		branch:             "master",
 		baseURL:            "https://github.com", //defaults to a github repo if the url is not set with URL method
 		maxFileSizeInBytes: 50000000,             // ~50MB file size limit
+		log:                log,
 	}
 }
 
@@ -48,8 +61,19 @@ type Directory struct {
 	Name string `json:"name,omitempty"`
 	Path string `json:"path,omitempty"`
 }
+
 type FileInterceptor func(File) error
 type DirInterceptor func(Directory) error
+
+func (g *Git) SkipFileReadDuringWalk() *Git {
+	g.skipFileReadDuringWalk = true
+	return g
+}
+
+func (g *Git) SkipOversizedFile() *Git {
+	g.skipOverizedFile = true
+	return g
+}
 
 // BaseURL sets git repository base URL and returns a pointer
 // to the same Git instance
@@ -136,7 +160,7 @@ func (g *Git) RegisterDirInterceptor(i DirInterceptor) *Git {
 }
 func clonewalk(g *Git) error {
 	if g.maxFileSizeInBytes == 0 {
-		return ErrInvalidSizeFile(errors.New("Max file size passed as 0. Will not read any file"))
+		return ErrInvalidSizeFile(errors.New("max file size passed as 0. Will not read any file"))
 	}
 
 	path := filepath.Join(os.TempDir(), g.repo, strconv.FormatInt(time.Now().UTC().UnixNano(), 10))
@@ -159,6 +183,8 @@ func clonewalk(g *Git) error {
 		_, err = git.PlainClone(path, false, cloneOptions)
 	}
 
+	g.log.Info("CLONE SUCCESSFULL")
+
 	if err != nil {
 		return ErrCloningRepo(err)
 	}
@@ -170,8 +196,10 @@ func clonewalk(g *Git) error {
 	}
 
 	if !info.IsDir() {
+		g.log.Info("LINE 188")
 		err = g.readFile(info, rootPath)
 		if err != nil {
+			g.log.Info("LINE 191", err)
 			return ErrCloningRepo(err)
 		}
 		return nil
@@ -179,6 +207,7 @@ func clonewalk(g *Git) error {
 	// If recurse mode is on, we will walk the tree
 	if g.recurse {
 		err = filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, er error) error {
+			g.log.Info("WALKING DIR ", d.Name(), path)
 			if d.IsDir() && g.dirInterceptor != nil {
 				return g.dirInterceptor(Directory{
 					Name: d.Name(),
@@ -194,6 +223,7 @@ func clonewalk(g *Git) error {
 			}
 			return g.readFile(f, path)
 		})
+
 		if err != nil {
 			return ErrCloningRepo(err)
 		}
@@ -224,7 +254,7 @@ func clonewalk(g *Git) error {
 					Path: fPath,
 				})
 				if err != nil {
-					fmt.Println(err.Error())
+					g.log.Error(err)
 				}
 			}(name, fPath, f.Name())
 			continue
@@ -232,34 +262,51 @@ func clonewalk(g *Git) error {
 		if f.IsDir() {
 			continue
 		}
+
 		err := g.readFile(f, fPath)
 		if err != nil {
-			fmt.Println(err.Error())
+			g.log.Error(err)
 		}
+
 	}
 
 	return nil
 }
 
 func (g *Git) readFile(f fs.FileInfo, path string) error {
+	g.log.Info("PROCESSING FILE ", f.Name())
 	if f.Size() > g.maxFileSizeInBytes {
-		return ErrInvalidSizeFile(errors.New("File exceeding size limit"))
+		g.log.Info("INSIDE 269")
+		g.log.Warn(ErrInvalidSizeFile(fmt.Errorf("File execeeds the size limit of %d bytes", g.maxFileSizeInBytes)))
+		
+		if g.skipOverizedFile {
+			g.log.Info("Skipping file ", path)
+			return nil
+		}
+		return ErrInvalidSizeFile(fmt.Errorf("File execeeds the size limit of %d bytes", g.maxFileSizeInBytes))
 	}
-	filename, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	content, err := io.ReadAll(filename)
-	if err != nil {
-		return err
+
+	var content []byte
+	var err error
+	if !g.skipFileReadDuringWalk {
+		var filename *os.File
+		filename, err = os.Open(path)
+		if err != nil {
+			return err
+		}
+		content, err = io.ReadAll(filename)
+		if err != nil {
+			return err
+		}
 	}
 	err = g.fileInterceptor(File{
 		Name:    f.Name(),
 		Path:    path,
 		Content: string(content),
 	})
+
 	if err != nil {
-		fmt.Println("Could not intercept the file ", f.Name())
+		err = ErrInvokeFileInterceptor(err, f.Name())
 	}
 	return err
 }
