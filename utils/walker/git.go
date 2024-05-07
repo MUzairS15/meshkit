@@ -37,9 +37,9 @@ type Git struct {
 
 	// Skips file which has size greater than "maxFileSizeInBytes".
 	// By default error is returned and the walk is terminated
-	skipOverizedFile       bool
-	
-	log                    logger.Handler
+	skipOverizedFile bool
+
+	log logger.Handler
 }
 
 // NewGit returns a pointer to an instance of Git
@@ -278,7 +278,7 @@ func (g *Git) readFile(f fs.FileInfo, path string) error {
 	if f.Size() > g.maxFileSizeInBytes {
 		g.log.Info("INSIDE 269")
 		g.log.Warn(ErrInvalidSizeFile(fmt.Errorf("File execeeds the size limit of %d bytes", g.maxFileSizeInBytes)))
-		
+
 		if g.skipOverizedFile {
 			g.log.Info("Skipping file ", path)
 			return nil
