@@ -1,7 +1,10 @@
 package component
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 
 	"cuelang.org/go/cue"
 	"github.com/layer5io/meshkit/utils"
@@ -77,14 +80,19 @@ func DeleteFields(m map[string]interface{}) {
 	}
 }
 
-func FilterCRDs(manifests [][]byte) ([]string, []error) {
+func FilterCRDs(manifests []byte) ([]string, []error) {
 	var errs []error
 	var filteredManifests []string
-	for _, m := range manifests {
-
+	decoder := yaml.NewDecoder(bytes.NewBuffer(manifests))
+	fmt.Println("-------------------------", string(manifests),)
+	for {
 		var crd map[string]interface{}
-		err := yaml.Unmarshal(m, &crd)
+		err := decoder.Decode(&crd)
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
 			errs = append(errs, err)
 			continue
 		}
@@ -93,7 +101,8 @@ func FilterCRDs(manifests [][]byte) ([]string, []error) {
 		if !isCrd {
 			continue
 		}
-		filteredManifests = append(filteredManifests, string(m))
+		manifestStr, _ := yaml.Marshal(crd)
+		filteredManifests = append(filteredManifests, string(manifestStr))
 	}
 	return filteredManifests, errs
 }

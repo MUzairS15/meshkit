@@ -1,7 +1,6 @@
 package github
 
 import (
-	"bytes"
 	"os"
 
 	"github.com/layer5io/meshkit/models/meshmodel/core/v1beta1"
@@ -31,8 +30,7 @@ func (gp GitHubPackage) GenerateComponents() ([]v1beta1.ComponentDefinition, err
 		return nil, ErrGenerateGitHubPackage(err, gp.Name)
 	}
 
-	manifestBytes := bytes.Split(data, []byte("\n---\n"))
-	crds, errs := component.FilterCRDs(manifestBytes)
+	crds, errs := component.FilterCRDs(data)
 
 	for _, crd := range crds {
 		comp, err := component.Generate(crd)

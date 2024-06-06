@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -174,6 +175,7 @@ func ExtractTarGz(path, downloadfilePath string) error {
 
 func ProcessContent(filePath string, f func(path string) error) error {
 	pathInfo, err := os.Stat(filePath)
+	fmt.Println("LINE 177 : ", filePath, err, pathInfo, pathInfo.IsDir())
 	if err != nil {
 		return ErrReadDir(err, filePath)
 	}

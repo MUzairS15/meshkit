@@ -2,6 +2,7 @@ package helm
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -64,14 +65,17 @@ func ConvertToK8sManifest(path string, w io.Writer) error {
 	if !info.IsDir() {
 		helmChartPath, _ = strings.CutSuffix(path, filepath.Base(path))
 	}
+	fmt.Println("LINE 68 : ", helmChartPath)
 	if IsHelmChart(helmChartPath) {
 		err := LoadHelmChart(helmChartPath, w, false)
+		fmt.Println("LINE 70 :--------------------------- ", err)
 		if err != nil {
 			return err
 		}
 		// If not a helm chart then assume k8s manifest.
 		// Add introspection for compose files later on.
 	} else if utils.IsYaml(path) {
+		fmt.Println("AHAHHAHA----------")
 		pathInfo, _ := os.Stat(path)
 		if pathInfo.IsDir() {
 			err := filepath.WalkDir(path, func(path string, d fs.DirEntry, _err error) error {
@@ -147,9 +151,11 @@ func LoadHelmChart(path string, w io.Writer, extractOnlyCrds bool) error {
 	} else {
 		manifests, err := DryRunHelmChart(chart)
 		if err != nil {
+			fmt.Println("DADADASDASD", err)
 			return ErrLoadHelmChart(err, path)
 		}
 		_, err = w.Write(manifests)
+		// fmt.Println("line 158 : ", string(manifests))
 		if err != nil {
 			return ErrLoadHelmChart(err, path)
 		}
